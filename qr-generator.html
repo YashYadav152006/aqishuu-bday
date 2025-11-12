@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QR Generator for Aqishuuu Wish</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  body{font-family:Poppins, sans-serif;margin:0;background:#fdf6fb;color:#222;display:flex;align-items:center;justify-content:center;height:100vh}
+  .box{background:#fff;padding:20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);width:420px;max-width:95%}
+  input{width:100%;padding:10px;border-radius:8px;border:1px solid #eee;margin-top:8px;font-size:0.95rem}
+  button{margin-top:10px;padding:10px 14px;border-radius:999px;border:none;background:#ff3b6b;color:#fff;cursor:pointer}
+  #qrcode{margin-top:14px;text-align:center}
+  canvas{max-width:100%}
+  .small{font-size:0.85rem;color:#666;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="box">
+    <h3>Create QR for Birthday Wish</h3>
+    <div class="small">Enter the final link that should open on scan. Example: <code>https://yourname.github.io/aqishuu/wish.html</code></div>
+    <input id="url" placeholder="Paste the hosted URL to wish.html here (or a data URL)">
+    <button id="gen">Generate QR</button>
+    <div id="qrcode"></div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button id="download">Download PNG</button>
+      <button id="download-heart">Download QR inside heart (overlay)</button>
+    </div>
+    <div class="small">Tip: Host the folder (both files + images) on GitHub Pages or Netlify for the QR to open on any phone.</div>
+  </div>
+
+  <!-- QR library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const qDiv = document.getElementById('qrcode');
+    let qrObj = null;
+    document.getElementById('gen').addEventListener('click', ()=>{
+      const url = document.getElementById('url').value.trim();
+      if(!url){ alert('Paste your final hosted URL to wish.html (or a data URL).'); return; }
+      qDiv.innerHTML = '';
+      qrObj = new QRCode(qDiv, {
+        text: url,
+        width: 320,
+        height: 320,
+        colorDark : "#ff2f6d",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+    });
+
+    document.getElementById('download').addEventListener('click', ()=>{
+      // find generated canvas or img
+      const img = qDiv.querySelector('img') || qDiv.querySelector('canvas');
+      if(!img){ alert('Generate QR first'); return; }
+      // if img tag
+      if(img.tagName.toLowerCase()==='img'){
+        const src = img.src;
+        const a = document.createElement('a'); a.href = src; a.download = 'aqishuu_qr.png'; a.click();
+      } else {
+        const data = img.toDataURL('image/png');
+        const a = document.createElement('a'); a.href = data; a.download = 'aqishuu_qr.png'; a.click();
+      }
+    });
+
+    // optional: draw QR onto heart background and download
+    document.getElementById('download-heart').addEventListener('click', async ()=>{
+      const canvasEl = qDiv.querySelector('canvas');
+      if(!canvasEl){ alert('Generate the QR first'); return; }
+      // load heart shape image (you can replace with your own heart file in same folder named 'heart_mask.png')
+      const heartUrl = 'heart.png'; // user should have heart.png in same folder or change name
+      try{
+        const heartImg = await loadImage(heartUrl);
+        // create canvas
+        const c = document.createElement('canvas');
+        c.width = Math.max(canvasEl.width, heartImg.naturalWidth || heartImg.width);
+        c.height = Math.max(canvasEl.height, heartImg.naturalHeight || heartImg.height);
+        const ctx = c.getContext('2d');
+        // white background
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,c.width,c.height);
+        // draw heart at center
+        const hW = heartImg.naturalWidth || heartImg.width;
+        const hH = heartImg.naturalHeight || heartImg.height;
+        const scale = Math.min(c.width / hW, c.height / hH, 1);
+        const drawW = hW * scale; const drawH = hH * scale;
+        const dx = (c.width - drawW)/2, dy = 20;
+        ctx.drawImage(heartImg, dx, dy, drawW, drawH);
+        // draw QR as smaller square in center of heart
+        const qrSize = Math.floor(Math.min(drawW, drawH) * 0.52);
+        // get QR canvas image data
+        const qrData = canvasEl.toDataURL('image/png');
+        const qrImg = await loadImage(qrData);
+        const qx = dx + (drawW - qrSize)/2, qy = dy + (drawH - qrSize)/2;
+        ctx.drawImage(qrImg, qx, qy, qrSize, qrSize);
+        // download
+        const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'aqishuu_qr_heart.png'; a.click();
+      } catch(e){
+        alert('Could not load heart image. Please make sure heart.png exists in same folder or generate normal QR instead.');
+      }
+    });
+
+    function loadImage(src){
+      return new Promise((res, rej)=>{
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = ()=>res(img);
+        img.onerror = e=>rej(e);
+        img.src = src;
+      });
+    }
+
+  </script>
+</body>
+</html>
